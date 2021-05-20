@@ -1,8 +1,8 @@
 # TProxy
 
-基于Docker的旁路由透明代理工具，借助Xray处理TProxy流量，可以实现虚拟化的代理网关，拥有独立的IP与MAC地址。
+基于Docker的旁路由透明代理工具，借助Xray处理TProxy流量，实现拥有独立IP与MAC地址的虚拟化代理网关。
 
-TProxy当前支持 `amd64`、`i386`、`arm64`、`armv7` 四种CPU架构，可正常代理全部TCP与UDP流量。
+TProxy当前支持 `amd64`、`i386`、`arm64`、`armv7` 四种CPU架构，可代理任意TCP与UDP流量。
 
 ## 部署
 
@@ -22,7 +22,7 @@ shell> docker network create -d macvlan \
 -o parent=eth0 macvlan
 ```
 
-选择一个目录存储数据，这里使用 `/etc/scutweb`
+选择一个目录存储数据，此处使用 `/etc/scutweb`
 
 ```
 shell> mkdir /etc/scutweb
@@ -30,7 +30,7 @@ shell> cd /etc/scutweb
 shell> vim custom.sh
 ```
 
-`custom.sh` 将在容器启动时首先执行，可用于指定容器IP地址与网关地址
+`custom.sh` 将在容器启动时首先执行，可用于指定容器IP与网关地址
 
 ```
 # 此处指定网关为192.168.2.1，容器IP为192.168.2.2
@@ -39,7 +39,7 @@ ip addr add 192.168.2.2/24 brd 192.168.2.255 dev eth0
 ip route add default via 192.168.2.1
 ```
 
-启动容器，此处映射时间与时区信息到容器中，可以与宿主机进行同步（容器内默认为协调世界时零时区），主要用于日志时间显示
+启动容器，此处映射时间与时区信息到容器中，可以与宿主机进行同步（容器内默认为UTC零时区），用于日志时间记录
 
 ```
 # 容器名称和存储目录可自行指定
@@ -112,7 +112,7 @@ shell> cat /etc/scutweb/segment/ipv6
 FF00::/8
 ```
 
-建议绕过内网地址、本地回环地址、链路本地地址、组播地址等
+建议绕过内网地址、本地回环地址、链路本地地址、组播地址等网段
 
 ```
 # IPv4
@@ -128,7 +128,7 @@ FE80::/10
 FF00::/8
 ```
 
-配置完成以后需要重启容器生效
+配置完成后重启容器生效
 
 ```
 shell> docker restart scutweb
