@@ -44,11 +44,11 @@ case "$MACHINE" in
 esac
 
 get_github_latest_version "XTLS/Xray-core"
-wget -P $XRAY_DIR/pkg "https://hub.fastgit.org/XTLS/Xray-core/releases/download/$VERSION/$XRAY_PKG_NAME"
+wget -P $XRAY_DIR/pkg "https://github.com/XTLS/Xray-core/releases/download/$VERSION/$XRAY_PKG_NAME"
 unzip $XRAY_DIR/pkg/$XRAY_PKG_NAME -d /$XRAY_DIR/pkg
 cp $XRAY_DIR/pkg/xray $XRAY_DIR
 rm -rf $XRAY_DIR/pkg
 
 get_github_latest_version "Loyalsoldier/v2ray-rules-dat"
-wget -P $ASSET_DIR "https://hub.fastgit.org/Loyalsoldier/v2ray-rules-dat/releases/download/$VERSION/geoip.dat"
-wget -P $ASSET_DIR "https://hub.fastgit.org/Loyalsoldier/v2ray-rules-dat/releases/download/$VERSION/geosite.dat"
+wget -P $ASSET_DIR "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$VERSION/geoip.dat"
+wget -P $ASSET_DIR "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$VERSION/geosite.dat"

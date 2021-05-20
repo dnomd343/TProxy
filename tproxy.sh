@@ -1,5 +1,4 @@
-[ ! -s "/etc/xray/expose/custom.sh" ] && touch /etc/xray/expose/custom.sh
-sh /etc/xray/expose/custom.sh
+[ -f "/etc/xray/expose/custom.sh" ] && sh /etc/xray/expose/custom.sh
 sh /etc/xray/load.sh
 
 ip rule add fwmark 1 table 100
