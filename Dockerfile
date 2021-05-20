@@ -4,15 +4,12 @@ RUN apk --update add --no-cache curl wget && \
     sh /asset.sh
 
 FROM alpine
-COPY . /tmp/xray
-COPY --from=asset /tmp/asset/ /tmp/xray/asset/
-RUN apk --update add --no-cache iptables ip6tables net-tools curl && \
+COPY ["./load.sh", "./tproxy.sh", "/etc/xray/"]
+COPY --from=asset /tmp/asset/ /etc/xray/asset/
+COPY --from=asset /tmp/xray/xray /usr/bin/
+RUN apk --update add --no-cache iptables ip6tables && \
     mkdir -p /etc/xray/conf && \
     mkdir -p /etc/xray/expose/log && \
     mkdir -p /etc/xray/expose/segment && \
-    mv /tmp/xray/tproxy.sh / && \
-    mv /tmp/xray/load.sh /etc/xray/ && \
-    mv /tmp/xray/asset/xray /usr/bin/ && \
-    mv /tmp/xray/asset /etc/xray/ && \
-    rm -rf /tmp/xray
+    mv /etc/xray/tproxy.sh /
 CMD ["sh","/tproxy.sh"]
