@@ -140,14 +140,18 @@ shell> docker restart scutweb
 本地构建
 
 ```
-shell> docker build -t tproxy https://github.com/dnomd343/TProxy.git#master
-···
+# 克隆仓库
+shell> git clone https://github.com/dnomd343/TProxy.git
+shell> cd TProxy
+# 构建镜像
+shell> docker build -t tproxy .
 ```
 
 交叉构建
 
 ```
-shell> docker buildx build -t dnomd343/tproxy --platform="linux/amd64,linux/arm64,linux/386,linux/arm/v7" https://github.com/dnomd343/TProxy.git#master --load
+# 构建并推送至Docker Hub
+shell> docker buildx build -t dnomd343/tproxy --platform="linux/amd64,linux/arm64,linux/386,linux/arm/v7" https://github.com/dnomd343/TProxy.git#master --push
 ```
 
 ## 许可证
