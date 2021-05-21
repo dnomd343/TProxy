@@ -57,7 +57,6 @@ dnomd343/tproxy
 
 ```
 shell> docker ps -a
-···
 ```
 
 容器成功运行以后，将会在存储目录下生成多个文件和文件夹
@@ -132,12 +131,42 @@ FF00::/8
 
 ```
 shell> docker restart scutweb
-···
+```
+
+此时宿主机无法与macvlan网络直接连接，需要手动配置桥接，这里以Debian系Linux发行版为例
+
+```
+shell> vim /etc/network/interfaces
+```
+
+补充如下配置
+
+```
+# 具体网络信息需要按实际情况指定
+auto eth0
+iface eth0 inet manual
+
+auto macvlan
+iface macvlan inet static
+  address 192.168.2.34
+  netmask 255.255.255.0
+  gateway 192.168.2.2
+  dns-nameservers 192.168.2.3
+  pre-up ip link add macvlan link eth0 type macvlan mode bridge
+  post-down ip link del macvlan link eth0 type macvlan mode bridge
+```
+
+重启宿主机生效
+
+```
+shell> reboot
 ```
 
 ## 构建
 
-本地构建
+如果需要修改TProxy或构建自己的容器，可按如下操作
+
+**本地构建**
 
 ```
 # 克隆仓库
@@ -147,7 +176,7 @@ shell> cd TProxy
 shell> docker build -t tproxy .
 ```
 
-交叉构建
+**交叉构建**
 
 ```
 # 构建并推送至Docker Hub
