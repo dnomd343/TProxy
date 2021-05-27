@@ -5,6 +5,7 @@ cat>$XRAY_DIR/conf/inbounds.json<<EOF
 {
   "inbounds": [
     {
+      "tag": "tproxy",
       "port": 7288,
       "protocol": "dokodemo-door",
       "sniffing": {
@@ -22,20 +23,58 @@ cat>$XRAY_DIR/conf/inbounds.json<<EOF
         "sockopt": {
           "tproxy": "tproxy"
         }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
       }
     },
     {
+      "tag": "socks"
       "port": 1080,
       "protocol": "socks",
       "settings": {
         "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
       }
     },
     {
+      "tag": "http"
       "port": 1081,
       "protocol": "http",
       "settings": {
         "allowTransparent": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "tag": "proxy"
+      "port": 10808,
+      "protocol": "socks",
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
       }
     }
   ]
