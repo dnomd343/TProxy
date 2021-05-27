@@ -33,7 +33,7 @@ cat>$XRAY_DIR/conf/inbounds.json<<EOF
       }
     },
     {
-      "tag": "socks"
+      "tag": "socks",
       "port": 1080,
       "protocol": "socks",
       "settings": {
@@ -48,7 +48,7 @@ cat>$XRAY_DIR/conf/inbounds.json<<EOF
       }
     },
     {
-      "tag": "http"
+      "tag": "http",
       "port": 1081,
       "protocol": "http",
       "settings": {
@@ -63,7 +63,7 @@ cat>$XRAY_DIR/conf/inbounds.json<<EOF
       }
     },
     {
-      "tag": "proxy"
+      "tag": "proxy",
       "port": 10808,
       "protocol": "socks",
       "settings": {
