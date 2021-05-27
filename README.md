@@ -162,6 +162,14 @@ iface macvlan inet static
 shell> reboot
 ```
 
+预设接口
+
++ `Socks5代理`: 1080端口，支持UDP，无授权，标志为 `socks`
+
++ `HTTP代理`: 1081端口，无授权，标志为 `http`
+
++ `全局Socks5代理`: 10808端口，支持UDP，无授权，标志为 `proxy`
+
 ## 构建
 
 如果需要修改TProxy或构建自己的容器，可按如下操作

@@ -115,8 +115,16 @@ cat>$XRAY_DIR/expose/routing.json<<EOF
     "rules": [
       {
         "type": "field",
+        "inboundTag": [
+          "proxy"
+        ],
+        "outboundTag": "node"
+      },
+      {
+        "type": "field",
         "ip": [
-          "0.0.0.0/0"
+          "0.0.0.0/0",
+          "::/0"
         ],
         "outboundTag": "node"
       }
