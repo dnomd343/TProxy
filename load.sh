@@ -136,12 +136,17 @@ EOF
 
 load_ipv4(){
 cat>$XRAY_DIR/expose/segment/ipv4<<EOF
+127.0.0.0/8
+169.254.0.0/16
 224.0.0.0/3
 EOF
 }
 
 load_ipv6(){
 cat>$XRAY_DIR/expose/segment/ipv6<<EOF
+::1/128
+FC00::/7
+FE80::/10
 FF00::/8
 EOF
 }

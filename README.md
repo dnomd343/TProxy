@@ -1,8 +1,8 @@
 # TProxy
 
-基于Docker的旁路由透明代理工具，借助Xray处理TProxy流量，实现拥有独立IP与MAC地址的虚拟化代理网关。
+容器化的旁路由透明代理工具，使用Xray处理TProxy流量，实现拥有独立IP与MAC地址的虚拟化代理网关，支持 `amd64`、`i386`、`arm64`、`armv7` 四种CPU架构，可代理任意TCP与UDP流量。
 
-TProxy当前支持 `amd64`、`i386`、`arm64`、`armv7` 四种CPU架构，可代理任意TCP与UDP流量。
+TProxy使用Docker容器化部署，在[Docker Hub](https://hub.docker.com/repository/docker/dnomd343/tproxy)可获取已构建的镜像。
 
 ## 部署
 
@@ -91,8 +91,16 @@ shell> docker ps -a
     "rules": [
       {
         "type": "field",
+        "inboundTag": [
+          "proxy"
+        ],
+        "outboundTag": "node"
+      },
+      {
+        "type": "field",
         "ip": [
-          "0.0.0.0/0"
+          "0.0.0.0/0",
+          "::/0"
         ],
         "outboundTag": "node"
       }
@@ -101,26 +109,15 @@ shell> docker ps -a
 }
 ```
 
-`segment` 文件夹下默认存储 `ipv4` 与 `ipv6` 两个文件，其中存储不代理的网段信息
+`segment` 文件夹下默认存储 `ipv4` 与 `ipv6` 两个文件，其中存储不代理的网段信息，建议绕过内网地址、本地回环地址、链路本地地址、组播地址等网段
 
 ```
 # IPv4与IPv6均默认绕过组播地址
 shell> cat /etc/scutweb/segment/ipv4
-224.0.0.0/3
-shell> cat /etc/scutweb/segment/ipv6
-FF00::/8
-```
-
-建议绕过内网地址、本地回环地址、链路本地地址、组播地址等网段
-
-```
-# IPv4
 127.0.0.0/8
 169.254.0.0/16
-192.168.2.0/24
 224.0.0.0/3
-
-# IPv6
+shell> cat /etc/scutweb/segment/ipv6
 ::1/128
 FC00::/7
 FE80::/10
