@@ -82,12 +82,12 @@ shell> docker ps -a
 }
 ```
 
-`routeing.json` 默认配置将全部流量交由 `node` 接口，即 `outbounds.json` 中的 `freedom` 出口，具体语法见[Xray文档](https://xtls.github.io/config/base/routing/)
+`routing.json` 默认配置将全部流量交由 `node` 接口，即 `outbounds.json` 中的 `freedom` 出口，具体语法见[Xray文档](https://xtls.github.io/config/base/routing/)
 
 ```
 {
   "routing": {
-    "domainStrategy": "AsIs",
+    "domainStrategy": "IPIfNonMatch",
     "rules": [
       {
         "type": "field",
@@ -98,12 +98,22 @@ shell> docker ps -a
       },
       {
         "type": "field",
-        "ip": [
-          "0.0.0.0/0",
-          "::/0"
-        ],
+        "network": "tcp,udp"
         "outboundTag": "node"
       }
+    ]
+  }
+}
+```
+
+`dns.json` 指定路由匹配时的DNS服务器，具体语法见[Xray文档](https://xtls.github.io/config/base/dns/)
+
+```
+{
+  "dns": {
+    "servers": [
+      "223.5.5.5",
+      "119.29.29.29"
     ]
   }
 }

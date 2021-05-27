@@ -111,7 +111,7 @@ load_routing(){
 cat>$XRAY_DIR/expose/routing.json<<EOF
 {
   "routing": {
-    "domainStrategy": "AsIs",
+    "domainStrategy": "IPIfNonMatch",
     "rules": [
       {
         "type": "field",
@@ -122,12 +122,23 @@ cat>$XRAY_DIR/expose/routing.json<<EOF
       },
       {
         "type": "field",
-        "ip": [
-          "0.0.0.0/0",
-          "::/0"
-        ],
+        "network": "tcp,udp"
         "outboundTag": "node"
       }
+    ]
+  }
+}
+EOF
+}
+
+
+load_dns(){
+cat>$XRAY_DIR/expose/dns.json<<EOF
+{
+  "dns": {
+    "servers": [
+      "223.5.5.5",
+      "119.29.29.29"
     ]
   }
 }
@@ -160,7 +171,9 @@ load_inbounds
 load_log
 [ ! -s "$XRAY_DIR/expose/outbounds.json" ] && load_outbounds
 [ ! -s "$XRAY_DIR/expose/routing.json" ] && load_routing
+[ ! -s "$XRAY_DIR/expose/dns.json" ] && load_dns
 cp $XRAY_DIR/expose/outbounds.json $XRAY_DIR/conf/
 cp $XRAY_DIR/expose/routing.json $XRAY_DIR/conf/
+cp $XRAY_DIR/expose/dns.json $XRAY_DIR/conf/
 [ ! -s "$XRAY_DIR/expose/segment/ipv4" ] && load_ipv4
 [ ! -s "$XRAY_DIR/expose/segment/ipv6" ] && load_ipv6
