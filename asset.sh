@@ -41,12 +41,15 @@ case "$MACHINE" in
   'arm64')
     XRAY_PKG_NAME="Xray-linux-arm64-v8a.zip"
     ;;
+  *)
+    exit 1
+    ;;
 esac
 
 get_github_latest_version "XTLS/Xray-core"
 wget -P $XRAY_DIR/pkg "https://github.com/XTLS/Xray-core/releases/download/$VERSION/$XRAY_PKG_NAME"
-unzip $XRAY_DIR/pkg/$XRAY_PKG_NAME -d /$XRAY_DIR/pkg
-cp $XRAY_DIR/pkg/xray $XRAY_DIR
+unzip $XRAY_DIR/pkg/$XRAY_PKG_NAME -d $XRAY_DIR/pkg
+mv $XRAY_DIR/pkg/xray $XRAY_DIR
 rm -rf $XRAY_DIR/pkg
 
 get_github_latest_version "Loyalsoldier/v2ray-rules-dat"
