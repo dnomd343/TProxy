@@ -39,11 +39,20 @@ ip addr add 192.168.2.2/24 brd 192.168.2.255 dev eth0
 ip route add default via 192.168.2.1
 ```
 
+由于TProxy只代理传输层TCP与UDP以上的流量，网络层及以下其他数据包将不被处理，其中最常见的是ICMP数据包，表现为ping无返回。由于Xray工作在传输层上，无法代理网络层流量，因此该问题无法直接解决，不过可以在 `custom.sh` 中添加以下命令，回应所有发往外网的ICMP数据包，表现为ping成功且延迟为内网访问时间（ICMP数据包实际未到达，使用NAT方式假冒远程主机返回到达信息）
+
+```
+# DNAT目标指定为自身IP地址
+iptables -t nat -N SCUT_PING
+iptables -t nat -A SCUT_PING -j DNAT --to-destination 192.168.2.2
+iptables -t nat -A PREROUTING -i eth0 -p icmp -j SCUT_PING
+```
+
 启动容器，此处映射时间与时区信息到容器中，可以与宿主机进行同步（容器内默认为UTC零时区），用于日志时间记录
 
 ```
 # 容器名称和存储目录可自行指定
-docker run --restart always \
+shell> docker run --restart always \
 --name scutweb \
 --network macvlan \
 --privileged -d \
