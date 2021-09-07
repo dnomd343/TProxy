@@ -122,7 +122,7 @@ cat>$XRAY_DIR/expose/routing.json<<EOF
       },
       {
         "type": "field",
-        "network": "tcp,udp"
+        "network": "tcp,udp",
         "outboundTag": "node"
       }
     ]
