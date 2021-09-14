@@ -83,10 +83,18 @@ EOF
 }
 
 load_log(){
+log_level=`cat $LOG_DIR/level`
+legal=false
+[ "$log_level" == "debug" ] && legal=true
+[ "$log_level" == "info" ] && legal=true
+[ "$log_level" == "warning" ] && legal=true
+[ "$log_level" == "error" ] && legal=true
+[ "$log_level" == "none" ] && legal=true
+[ "$legal" == false ] && log_level="warning"
 cat>$XRAY_DIR/conf/log.json<<EOF
 {
   "log": {
-    "loglevel": "warning",
+    "loglevel": "$log_level",
     "access": "$LOG_DIR/access.log",
     "error": "$LOG_DIR/error.log" 
   }
