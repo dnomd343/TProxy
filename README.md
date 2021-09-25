@@ -1,12 +1,12 @@
-# TProxy
+# 虚拟代理网关
 
-容器化的旁路由透明代理工具，使用Xray处理TProxy流量，实现独立MAC与IP地址的虚拟化代理网关，支持 `amd64`、`i386`、`arm64`、`armv7` 多种CPU架构，可代理全部TCP和UDP流量。
+快速搭建的虚拟网关，以旁路由形式收集内网流量，用于局域网设备的透明代理。该网关拥有独立的MAC与IP地址，脱离宿主机网络环境，使用Docker容器化部署，拉取镜像设置参数后即可运行，无需进行复杂的路由配置。
 
-TProxy使用Docker容器化部署，在[Docker Hub](https://hub.docker.com/repository/docker/dnomd343/tproxy)或[Github Package](https://github.com/dnomd343/TProxy/pkgs/container/tproxy)可以查看已构建的镜像。
+原理上，借助于macvlan虚拟网卡技术实现，iptables/ip6tables机制收集客户端流量，以TProxy方式将数据交由Xray处理，实现虚拟代理网关，支持TCP和UDP流量，支持IPv4与IPv6双栈，支持 `amd64`、`i386`、`arm64`、`armv7` 多种CPU架构。
 
 ## 镜像获取
 
-Docker镜像建议拉取 `latest` 版本，如果需要特定版本镜像，拉取时指定tag为版本号即可。
+在[Docker Hub](https://hub.docker.com/repository/docker/dnomd343/tproxy)或[Github Package](https://github.com/dnomd343/TProxy/pkgs/container/tproxy)可以查看已构建的镜像，使用时建议拉取 `latest` 版本，如果需要特定版本镜像，拉取时指定tag为版本号即可。
 
 ```
 # latest版本
@@ -16,7 +16,7 @@ shell> docker pull dnomd343/tproxy
 shell> docker pull dnomd343/tproxy:v1.1
 ```
 
-TProxy可以从多个镜像源拉取，其数据完全相同，国内用户建议首选阿里云镜像。
+镜像可以从多个源拉取，其数据完全相同，国内用户建议首选阿里云镜像。
 
 ```
 # Docker Hub
@@ -31,10 +31,18 @@ shell> docker pull registry.cn-shenzhen.aliyuncs.com/dnomd343/tproxy
 
 ## 开始部署
 
-首先开启网卡混杂模式
+> 以下内容基于树莓派4B测试，系统为 `Raspberry Pi OS` ，Linux内核为 `5.10.60`，其它设备环境原理类似。
+
+开启网卡混杂模式
 
 ```
 shell> ip link set eth0 promisc on
+```
+
+安装相关内核模块
+
+```
+shell> modprobe ip6table_filter
 ```
 
 创建 `macvlan` 网络
@@ -44,36 +52,18 @@ shell> ip link set eth0 promisc on
 shell> docker network create -d macvlan \
 --subnet=192.168.2.0/24 \
 --gateway=192.168.2.1 \
--o parent=eth0 macvlan
+--subnet=fc00::/64 \
+--gateway=fc00::1 \
+--ipv6 -o parent=eth0 macvlan
 ```
 
 选择一个目录存储数据，此处使用 `/etc/scutweb`
 
 ```
 shell> mkdir /etc/scutweb
-shell> cd /etc/scutweb
-shell> vim custom.sh
 ```
 
-`custom.sh` 将在容器启动时首先执行，可用于指定容器静态IP与主路由网关地址
-
-```
-# 指定网关为192.168.2.1，容器IP为192.168.2.2
-ip addr flush dev eth0
-ip addr add 192.168.2.2/24 brd 192.168.2.255 dev eth0
-ip route add default via 192.168.2.1
-```
-
-由于TProxy只代理传输层TCP与UDP以上的流量，网络层及以下其他数据包将不被处理，其中最常见的是ICMP数据包，表现为ping流量不走代理。但可以在 `custom.sh` 中添加以下命令，回应所有发往外网的ICMP数据包，表现为ping成功且延迟为内网访问时间（ICMP数据包实际未到达，使用NAT方式假冒远程主机返回到达信息）
-
-```
-# DNAT目标指定为自身IP地址
-iptables -t nat -N FAKE_PING
-iptables -t nat -A FAKE_PING -j DNAT --to-destination 192.168.2.2
-iptables -t nat -A PREROUTING -i eth0 -p icmp -j FAKE_PING
-```
-
-启动容器，此处映射时间与时区信息到容器中，可以与宿主机进行同步（容器内默认为UTC零时区），用于日志时间记录
+启动容器，此处映射时间与时区信息到容器中，可以与宿主机进行同步（容器内默认为UTC零时区），用于日志时间记录。
 
 ```
 # 容器名称和存储目录可自行指定
@@ -84,7 +74,7 @@ shell> docker run --restart always \
 --volume /etc/scutweb/:/etc/xray/expose/ \
 --volume /etc/timezone:/etc/timezone:ro \
 --volume /etc/localtime:/etc/localtime:ro \
-dnomd343/tproxy
+dnomd343/tproxy:latest
 # 此处为DockerHub镜像源，可按上文链接替换为其他源
 ```
 
@@ -94,24 +84,47 @@ dnomd343/tproxy
 shell> docker ps -a
 ```
 
-容器成功运行以后，将会在存储目录下生成多个文件和文件夹
+容器成功运行以后，将会在存储目录下生成多个文件夹
 
-+ `log`：文件夹，存储代理流量日志
++ `asset`：存储路由规则
 
-+ `segment`：文件夹，存储不代理的网段信息
++ `config`：存储Xray配置文件
 
-+ `outbounds.json`：指定流量出口信息
++ `log`：存储代理流量日志
 
-+ `routeing.json`：指定流量路由信息
++ `network`：存储网络相关配置
 
-`outbounds.json` 默认配置流量转发给网关，需要用户手动配置为上游接口，具体语法见[Xray文档](https://xtls.github.io/config/base/outbounds/)
+**资源文件夹**
+
+`asset` 目录默认放置 `geoip.dat` 与 `geosite.dat` 规则文件，分别存储IP与域名归属信息，容器初始化时会同时创建 `update.sh` 脚本，用于向[Github仓库](https://github.com/Loyalsoldier/v2ray-rules-dat.git)拉取更新。
+
+该目录也可放置自定义规则文件，后缀为 `.dat` 的文件将可以在Xray配置文件里直接引用，格式为 `ext:file.dat:tag` ，具体配置见[Xray文档](https://xtls.github.io/config/routing.html#ruleobject)。
+
+**配置文件夹**
+
+`config` 目录存储Xray配置文件，容器初始化时创建 `dns.json` 、`outbounds.json` 和 `routing.json` 三个文件，分别指定路由DNS服务器、流量出口信息、流量路由信息。
+
+`dns.json` 指定路由匹配时的DNS服务器，默认使用主机DNS，具体原理见[Xray文档](https://xtls.github.io/config/dns.html)
+
+```
+{
+  "dns": {
+    "servers": [
+      "localhost"
+    ]
+  }
+}
+```
+
+`outbounds.json` 默认配置流量转发给上游网关，需要用户手动配置为上游接口，具体语法见[Xray文档](https://xtls.github.io/config/base/outbounds/)
 
 ```
 {
   "outbounds": [
     {
       "tag": "node",
-      "protocol": "freedom"
+      "protocol": "freedom",
+      "settings": {}
     }
   ]
 }
@@ -122,18 +135,11 @@ shell> docker ps -a
 ```
 {
   "routing": {
-    "domainStrategy": "IPIfNonMatch",
+    "domainStrategy": "AsIs",
     "rules": [
       {
         "type": "field",
-        "inboundTag": [
-          "proxy"
-        ],
-        "outboundTag": "node"
-      },
-      {
-        "type": "field",
-        "network": "tcp,udp"
+        "network": "tcp,udp",
         "outboundTag": "node"
       }
     ]
@@ -141,41 +147,51 @@ shell> docker ps -a
 }
 ```
 
-`dns.json` 指定路由匹配时的DNS服务器，具体语法见[Xray文档](https://xtls.github.io/config/base/dns/)
+**日志文件夹**
+
+`log` 目录用于放置Xray代理日志，记录至 `access.log` 和 `error.log` 两个文件中。
+
+日志记录级别默认为 `warning` ，需要修改时可以在目录下创建 `level` 文件，写入 `debug` 、`info` 、`warning` 、`error` 或 `none` 指定级别，具体区别见[Xray文档](https://xtls.github.io/config/log.html)。
+
+**网络文件夹**
+
+`network` 文件夹记录虚拟网关的网络配置，默认创建 `bypass` 和 `interface` 两个文件夹，前者记录不代理的网段，后者存储容器的IP、掩码和上游网关等信息。
+
+`bypass` 文件夹下默认有 `ipv4` 与 `ipv6` 两个文件，其中分别记录两种协议栈的绕过信息，容器初始化时除了配置回环地址、内网地址的绕过，还将绕过本配置文件中的网段，默认情况下，IPv4将绕过链路本地地址、D类多点播送地址和E类保留地址，IPv6将绕过唯一本地地址、链路本地地址和组播地址。
 
 ```
-{
-  "dns": {
-    "servers": [
-      "223.5.5.5",
-      "119.29.29.29"
-    ]
-  }
-}
-```
-
-`segment` 文件夹下默认有 `ipv4` 与 `ipv6` 两个文件，其中存储不代理的网段信息，建议绕过内网地址、本地回环地址、链路本地地址、组播地址等网段
-
-```
-# IPv4与IPv6均默认绕过组播地址
-shell> cat /etc/scutweb/segment/ipv4
-127.0.0.0/8
+shell> cat /etc/scutweb/network/bypass/ipv4
 169.254.0.0/16
 224.0.0.0/3
-shell> cat /etc/scutweb/segment/ipv6
-::1/128
-FC00::/7
-FE80::/10
-FF00::/8
+shell> cat /etc/scutweb/network/bypass/ipv6
+fc00::/7
+fe80::/10
+ff00::/8
 ```
 
-配置完成后重启容器生效
+`interface` 文件夹下默认有 `ipv4` 与 `ipv6` 两个文件，分别记录容器网络配置信息，两者初始化时内容均如下：
 
 ```
-shell> docker restart scutweb
+ADDRESS=
+GATEWAY=
+FORWARD=true
 ```
 
-此时宿主机无法与macvlan网络直接连接，需要手动配置桥接，这里以Debian系Linux发行版为例
+`ADDRESS` 指定容器静态IP地址及掩码，如 `192.168.2.2/24` 或 `fc00::2/64` ；
+
+`GATEWAY` 指定容器上游网关，如 `192.168.2.1` 或 `fc00::1` ；
+
+`FORWARD` 指定是否开启IPv4或IPv6的内核转发功能，正常情况下建议打开。
+
+如果不需要自定义任何网络配置，可以在 `interface` 目录下创建 `ignore` 文件，跳过网络参数的相关配置。除此之外，在 `network` 目录下还可创建 `dns` 文件，在其中指定网关内部的DNS服务器。
+
+在更改完以上参数后，重启容器即可生效
+
+```
+shell> docker restart -t=0 scutweb
+```
+
+受限于macvlan机制，宿主机无法直接与macvlan容器通讯，因此需要手动配置网桥，才能使宿主机正常使用虚拟网关。
 
 ```
 shell> vim /etc/network/interfaces
@@ -190,12 +206,14 @@ iface eth0 inet manual
 
 auto macvlan
 iface macvlan inet static
-  address 192.168.2.34
-  netmask 255.255.255.0
-  gateway 192.168.2.2
-  dns-nameservers 192.168.2.3
+  address 192.168.2.34   # 宿主机静态IP地址
+  netmask 255.255.255.0  # 子网掩码
+  gateway 192.168.2.2    # 虚拟网关IP地址
+  dns-nameservers 192.168.2.3  # DNS主服务器
+  dns-nameservers 192.168.2.1  # DNS备用服务器
   pre-up ip link add macvlan link eth0 type macvlan mode bridge
   post-down ip link del macvlan link eth0 type macvlan mode bridge
+  # 搭建网桥macvlan，用于与虚拟网关通讯
 ```
 
 重启宿主机网络生效（重启宿主机亦可）
@@ -205,7 +223,7 @@ shell> /etc/init.d/networking restart
 [ ok ] Restarting networking (via systemctl): networking.service.
 ```
 
-配置完成后，TProxy容器的IP地址可视为旁路由IP，需要使用TProxy代理的设备修改其网关为该IP地址，若想让内网全部设备均可使用，则需修改路由器DHCP设置，将网关指向容器IP（仅对动态IP地址设备生效，配置过静态IP的设备仍需手动修改）
+配置完成后，TProxy容器的IP地址可视为旁路由IP，需要使用代理的设备修改其网关为该IP地址即可，若想让内网全部设备均可使用，则需修改路由器DHCP设置，将网关指向容器IP（仅对动态IP地址设备生效，配置过静态IP的设备仍需手动修改）
 
 ## 实例演示
 
@@ -213,39 +231,32 @@ shell> /etc/init.d/networking restart
 
 > 代理全部流量并进行分流，国内流量直连，国外流量走科学上网节点
 
-初始化命令中指定容器IP地址
+假设原网关IP为 `192.168.2.2` ，可通过它正常访问国内网络，此时搭建新的虚拟网关 `192.168.2.4` ，用于访问国外网络（此处仅配置IPv4网络，IPv6可类比设置）
+
+`network/interface/ipv4` 中指定以下参数
 
 ```
-# custom.sh
-ip addr flush dev eth0
-ip addr add 192.168.2.4/24 brd 192.168.2.255 dev eth0
-ip route add default via 192.168.2.2
+ADDRESS=192.168.2.4/24
+GATEWAY=192.168.2.2
+FORWARD=true
 ```
 
-绕过内网IP地址，添加 `192.168.2.0/24` 网段
-
-```
-# segment/ipv4
-127.0.0.0/8
-169.254.0.0/16
-192.168.2.0/24
-224.0.0.0/3
-```
-
-此处将DNS指向本地的无污染[ClearDNS](https://github.com/dnomd343/ClearDNS)服务，如果未部署该服务，修改为 `8.8.8.8` 即可（Xray会将其重新路由至国外节点，不存在污染问题）
+更改XRAY配置文件
 
 ```
 # dns.json
 {
   "dns": {
     "servers": [
-      "192.168.2.3"
+      "223.5.5.5"
     ]
   }
 }
 ```
 
-可以配置多个服务节点负载均衡，提高科学上网速度，这里设置了三个VLESS+XTLS节点。
+此处DNS服务器用于域名分流，可指定国内公共DNS服务器，如 `223.5.5.5` 或 `119.29.29.29` 等（利用了GFW污染域名均为国外IP的特性），如果更准确地分流，也可指定为国外公共DNS服务器，如 `1.1.1.1` 或 `8.8.8.8` 等（请求流量会路由至国外节点，不存在污染问题）
+
+在出口配置中可以使用多台服务器进行负载均衡，提高科学上网速度，这里设置了三个节点
 
 ```
 # outbounds.json
@@ -280,57 +291,11 @@ ip route add default via 192.168.2.2
     },
     {
       "tag": "proxy02",
-      "protocol": "vless",
-      "settings": {
-        "vnext": [
-          {
-            "address": "···",
-            "port": 443,
-            "users": [
-              {
-                "id": "···",
-                "encryption": "none",
-                "flow": "xtls-rprx-direct"
-              }
-            ]
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
-          "allowInsecure": false,
-          "serverName": "···"
-        }
-      }
+      ···
     },
     {
       "tag": "proxy03",
-      "protocol": "vless",
-      "settings": {
-        "vnext": [
-          {
-            "address": "···",
-            "port": 443,
-            "users": [
-              {
-                "id": "···",
-                "encryption": "none",
-                "flow": "xtls-rprx-direct"
-              }
-            ]
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
-          "allowInsecure": false,
-          "serverName": "···"
-        }
-      }
+      ···
     },
     {
       "tag": "direct",
@@ -346,7 +311,7 @@ ip route add default via 192.168.2.2
 }
 ```
 
-在路由中配置分流与负载均衡，其中还开启了广告拦截功能
+在路由中配置分流与负载均衡，同时开启了广告拦截功能
 
 ```
 # routing.json
@@ -354,13 +319,6 @@ ip route add default via 192.168.2.2
   "routing": {
     "domainStrategy": "IPOnDemand",
     "rules": [
-      {
-        "type": "field",
-        "inboundTag": [
-          "proxy"
-        ],
-        "balancerTag": "balancer"
-      },
       {
         "type": "field",
         "domain": [
@@ -407,29 +365,45 @@ ip route add default via 192.168.2.2
 
 > 部分校园网存在TCP/53或UDP/53端口无认证漏洞，可将全部流量代理并转发到个人服务器上，实现免认证、无限速的上网
 
-初始化命令中指定容器IP地址，同时模拟外网ICMP数据包响应（否则所有ping均为超时）
+假设路由器WAN口配置了校园网提供的静态IP地址，内网通过NAT方式连接到交换机上，路由器IP地址为 `192.168.2.1` ，创建虚拟旁路由 `192.168.2.2` ，将流量代理到个人服务器上，让内网设备可以正常联网。
+
+`network/interface/ipv4` 中指定以下参数
 
 ```
-# custom.sh
-ip addr flush dev eth0
-ip addr add 192.168.2.2/24 brd 192.168.2.255 dev eth0
-ip route add default via 192.168.2.1
-iptables -t nat -N SCUT_PING
-iptables -t nat -A SCUT_PING -j DNAT --to-destination 192.168.2.2
-iptables -t nat -A PREROUTING -i eth0 -p icmp -j SCUT_PING
+ADDRESS=192.168.2.2/24
+GATEWAY=192.168.2.1
+FORWARD=true
 ```
 
-绕过内网IP地址，添加 `192.168.2.0/24` 网段
+`network/interface/ipv6` 中指定以下参数（代理隧道运行在IPv4上，内网IPv6流量将封装后在远程服务器上输出）
 
 ```
-# segment/ipv4
-127.0.0.0/8
-169.254.0.0/16
-192.168.2.0/24
-224.0.0.0/3
+ADDRESS=fc00::2/64
+GATEWAY=
+FORWARD=false
 ```
 
-此时所有流量将被代理，不存在域名分流需求，因此无需设置DNS服务器
+在主目录下可以创建 `custom.sh` 文件，该脚本将在容器启动时执行，可添加自定义命令进行定制。
+
+```
+shell> cd /etc/scutweb
+shell> vim custom.sh
+```
+
+由于TProxy模式不代理网络层及以下的数据包，ping流量的ICMP数据包不走代理，需要时可以在 `custom.sh` 中添加以下命令，回应所有发往外网的ICMP数据包，表现为ping成功且延迟为内网访问时间。
+
+```
+# DNAT目标指定为自身IP地址
+iptables -t nat -N FAKE_PING
+iptables -t nat -A FAKE_PING -j DNAT --to-destination 192.168.2.2
+iptables -t nat -A PREROUTING -i eth0 -p icmp -j FAKE_PING
+ip6tables -t nat -N FAKE_PING
+ip6tables -t nat -A FAKE_PING -j DNAT --to-destination fc00::2
+ip6tables -t nat -A PREROUTING -i eth0 -p icmp -j FAKE_PING
+# ICMP数据包实际未到达，使用NAT方式假冒远程主机返回到达信息
+```
+
+当前需求下，所有流量将被代理，不存在域名分流需求，因此无需设置DNS服务器
 
 ```
 # dns.json
@@ -438,7 +412,7 @@ iptables -t nat -A PREROUTING -i eth0 -p icmp -j SCUT_PING
 }
 ```
 
-这里配置了三个节点，平时使用一台即可，其他两台作为备用容灾
+此处配置了三个可用节点，分别为 `nodeA` 、`nodeB` 和 `nodeC`
 
 ```
 # outbounds.json
@@ -446,81 +420,21 @@ iptables -t nat -A PREROUTING -i eth0 -p icmp -j SCUT_PING
   "outbounds": [
     {
       "tag": "nodeA",
-      "protocol": "vless",
-      "settings": {
-        "vnext": [
-          {
-            "address": "···",
-            "port": 53,
-            "users": [
-              {
-                "id": "···",
-                "encryption": "none",
-                "flow": "xtls-rprx-direct"
-              }
-            ]
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
-          "allowInsecure": false,
-          "serverName": "···"
-        }
-      }
+      ···
     },
     {
       "tag": "nodeB",
-      "protocol": "vmess",
-      "settings": {
-        "vnext": [
-          {
-            "address": "···",
-            "port": 53,
-            "users": [
-              {
-                "id": "···",
-                "alterId": 0,
-                "security": "auto"
-              }
-            ]
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "tls",
-        "tlsSettings": {
-          "allowInsecure": false,
-          "serverName": "···"
-        }
-      }
+      ···
     },
     {
       "tag": "nodeC",
-      "protocol": "shadowsocks",
-      "settings": {
-        "servers": [
-          {
-            "address": "···",
-            "method": "aes-256-gcm",
-            "ota": false,
-            "password": "···",
-            "port": 53
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp"
-      }
-    }
+      ···
+    },
   ]
 }
 ```
 
-路由核心接管全部流量并转发给 `nodeA` 节点
+路由核心接管全部流量并进行分流，这里将IPv4透明代理流量转发到三台服务器负载均衡，但由于仅有 `nodeC` 节点支持IPv6，因此IPv6代理流量只会被转发到 `nodeC` 上，其余非透明代理流量也将由 `nodeC` 兜底。
 
 ```
 # routing.json
@@ -530,8 +444,28 @@ iptables -t nat -A PREROUTING -i eth0 -p icmp -j SCUT_PING
     "rules": [
       {
         "type": "field",
+        "inboundTag": [ "tproxy" ],
+        "balancerTag": "ipv4"
+      },
+      {
+        "type": "field",
+        "inboundTag": [ "tproxy6" ],
+        "balancerTag": "ipv6"
+      },
+      {
+        "type": "field",
         "network": "tcp,udp",
-        "outboundTag": "nodeA"
+        "balancerTag": "ipv6"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "ipv4",
+        "selector": [ "nodeA", "nodeB", "nodeC" ]
+      },
+      {
+        "tag": "ipv6",
+        "selector": [ "nodeC" ]
       }
     ]
   }
@@ -544,11 +478,13 @@ iptables -t nat -A PREROUTING -i eth0 -p icmp -j SCUT_PING
 
 ### 预设接口
 
++ `IPv4透明代理`: 7288端口，标志为 `tproxy`
+
++ `IPv6透明代理`: 7289端口，标志为 `tproxy6`
+
 + `Socks5代理`: 1080端口，支持UDP，无授权，标志为 `socks`
 
 + `HTTP代理`: 1081端口，无授权，标志为 `http`
-
-+ `全局Socks5代理`: 10808端口，支持UDP，无授权，标志为 `proxy`
 
 ### 容器构建
 
