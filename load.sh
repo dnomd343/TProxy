@@ -120,6 +120,18 @@ cat>$XRAY_DIR/config/inbounds.json<<EOF
 EOF
 }
 
+load_dns(){
+cat>$CONFIG_DIR/dns.json<<EOF
+{
+  "dns": {
+    "servers": [
+      "localhost"
+    ]
+  }
+}
+EOF
+}
+
 load_outbounds(){
 cat>$CONFIG_DIR/outbounds.json<<EOF
 {
@@ -151,19 +163,6 @@ cat>$CONFIG_DIR/routing.json<<EOF
         "network": "tcp,udp",
         "outboundTag": "node"
       }
-    ]
-  }
-}
-EOF
-}
-
-
-load_dns(){
-cat>$CONFIG_DIR/dns.json<<EOF
-{
-  "dns": {
-    "servers": [
-      "localhost"
     ]
   }
 }
@@ -243,6 +242,13 @@ if [ -n "$ipv6_forward" ]; then
   else
     eval "sysctl -w net.ipv6.conf.all.forwarding=0"
   fi
+fi
+if [ -s "$NETWORK_DIR/dns" ]; then
+  cat /dev/null > /etc/resolv.conf
+  while read -r row
+  do
+    echo "nameserver $row" >> /etc/resolv.conf
+  done < $NETWORK_DIR/dns
 fi
 }
 
