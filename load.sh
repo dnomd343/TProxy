@@ -1,20 +1,35 @@
 XRAY_DIR="/etc/xray"
 LOG_DIR="$XRAY_DIR/expose/log"
+CONFIG_DIR="$XRAY_DIR/expose/config"
+
+load_log(){
+log_level=`cat $LOG_DIR/level`
+legal=false
+[ "$log_level" == "debug" ] && legal=true
+[ "$log_level" == "info" ] && legal=true
+[ "$log_level" == "warning" ] && legal=true
+[ "$log_level" == "error" ] && legal=true
+[ "$log_level" == "none" ] && legal=true
+[ "$legal" == false ] && log_level="warning"
+cat>$XRAY_DIR/config/log.json<<EOF
+{
+  "log": {
+    "loglevel": "$log_level",
+    "access": "$LOG_DIR/access.log",
+    "error": "$LOG_DIR/error.log"
+  }
+}
+EOF
+}
+
 load_inbounds(){
-cat>$XRAY_DIR/conf/inbounds.json<<EOF
+cat>$XRAY_DIR/config/inbounds.json<<EOF
 {
   "inbounds": [
     {
       "tag": "tproxy",
       "port": 7288,
       "protocol": "dokodemo-door",
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
-      },
       "settings": {
         "network": "tcp,udp",
         "followRedirect": true
@@ -82,28 +97,8 @@ cat>$XRAY_DIR/conf/inbounds.json<<EOF
 EOF
 }
 
-load_log(){
-log_level=`cat $LOG_DIR/level`
-legal=false
-[ "$log_level" == "debug" ] && legal=true
-[ "$log_level" == "info" ] && legal=true
-[ "$log_level" == "warning" ] && legal=true
-[ "$log_level" == "error" ] && legal=true
-[ "$log_level" == "none" ] && legal=true
-[ "$legal" == false ] && log_level="warning"
-cat>$XRAY_DIR/conf/log.json<<EOF
-{
-  "log": {
-    "loglevel": "$log_level",
-    "access": "$LOG_DIR/access.log",
-    "error": "$LOG_DIR/error.log" 
-  }
-}
-EOF
-}
-
 load_outbounds(){
-cat>$XRAY_DIR/expose/outbounds.json<<EOF
+cat>$CONFIG_DIR/outbounds.json<<EOF
 {
   "outbounds": [
     {
@@ -116,10 +111,10 @@ EOF
 }
 
 load_routing(){
-cat>$XRAY_DIR/expose/routing.json<<EOF
+cat>$CONFIG_DIR/routing.json<<EOF
 {
   "routing": {
-    "domainStrategy": "IPIfNonMatch",
+    "domainStrategy": "AsIs",
     "rules": [
       {
         "type": "field",
@@ -141,12 +136,11 @@ EOF
 
 
 load_dns(){
-cat>$XRAY_DIR/expose/dns.json<<EOF
+cat>$CONFIG_DIR/dns.json<<EOF
 {
   "dns": {
     "servers": [
-      "223.5.5.5",
-      "119.29.29.29"
+      "localhost"
     ]
   }
 }
@@ -170,18 +164,20 @@ FF00::/8
 EOF
 }
 
-mkdir -p $XRAY_DIR/conf
+mkdir -p $XRAY_DIR/config
 mkdir -p $XRAY_DIR/expose/segment
 mkdir -p $LOG_DIR
+mkdir -p $CONFIG_DIR
+
 [ ! -s "$LOG_DIR/access.log" ] && touch $LOG_DIR/access.log
 [ ! -s "$LOG_DIR/error.log" ] && touch $LOG_DIR/error.log
-load_inbounds
+
 load_log
-[ ! -s "$XRAY_DIR/expose/outbounds.json" ] && load_outbounds
-[ ! -s "$XRAY_DIR/expose/routing.json" ] && load_routing
-[ ! -s "$XRAY_DIR/expose/dns.json" ] && load_dns
-cp $XRAY_DIR/expose/outbounds.json $XRAY_DIR/conf/
-cp $XRAY_DIR/expose/routing.json $XRAY_DIR/conf/
-cp $XRAY_DIR/expose/dns.json $XRAY_DIR/conf/
+load_inbounds
+[ ! -s "$CONFIG_DIR/outbounds.json" ] && load_outbounds
+[ ! -s "$CONFIG_DIR/routing.json" ] && load_routing
+[ ! -s "$CONFIG_DIR/dns.json" ] && load_dns
+cp $CONFIG_DIR/*.json $XRAY_DIR/config/
+
 [ ! -s "$XRAY_DIR/expose/segment/ipv4" ] && load_ipv4
 [ ! -s "$XRAY_DIR/expose/segment/ipv6" ] && load_ipv6
