@@ -191,7 +191,7 @@ chmod +x $ASSET_DIR/update.sh
 }
 
 load_network_ipv4(){
-cat>"$NETWORK_DIR/ipv4"<<EOF
+cat>"$NETWORK_DIR/interface/ipv4"<<EOF
 ADDRESS=
 GATEWAY=
 FORWARD=true
@@ -199,7 +199,7 @@ EOF
 }
 
 load_network_ipv6(){
-cat>"$NETWORK_DIR/ipv6"<<EOF
+cat>"$NETWORK_DIR/interface/ipv6"<<EOF
 ADDRESS=
 GATEWAY=
 FORWARD=true
@@ -219,7 +219,7 @@ do
   [ "$row" != "$temp" ] && ipv4_gateway=$temp
   temp=${row#FORWARD=}
   [ "$row" != "$temp" ] && ipv4_forward=$temp
-done < $NETWORK_DIR/ipv4
+done < $NETWORK_DIR/interface/ipv4
 [ -n "$ipv4_address" ] && eval "ip -4 addr add $ipv4_address dev eth0"
 [ -n "$ipv4_gateway" ] && eval "ip -4 route add default via $ipv4_gateway"
 if [ -n "$ipv4_forward" ]; then
@@ -237,7 +237,7 @@ do
   [ "$row" != "$temp" ] && ipv6_gateway=$temp
   temp=${row#FORWARD=}
   [ "$row" != "$temp" ] && ipv6_forward=$temp
-done < $NETWORK_DIR/ipv6
+done < $NETWORK_DIR/interface/ipv6
 [ -n "$ipv6_address" ] && eval "ip -6 addr add $ipv6_address dev eth0"
 [ -n "$ipv6_gateway" ] && eval "ip -6 route add default via $ipv6_gateway"
 if [ -n "$ipv6_forward" ]; then
@@ -247,18 +247,18 @@ if [ -n "$ipv6_forward" ]; then
     eval "sysctl -w net.ipv6.conf.all.forwarding=0"
   fi
 fi
-if [ -s "$NETWORK_DIR/dns" ]; then
-  cat /dev/null > /etc/resolv.conf
-  while read -r row
-  do
-    echo "nameserver $row" >> /etc/resolv.conf
-  done < $NETWORK_DIR/dns
-fi
+}
+
+init_dns(){
+cat /dev/null > /etc/resolv.conf
+while read -r row
+do
+  echo "nameserver $row" >> /etc/resolv.conf
+done < $NETWORK_DIR/dns
 }
 
 load_ipv4(){
 cat>$XRAY_DIR/expose/segment/ipv4<<EOF
-127.0.0.0/8
 169.254.0.0/16
 224.0.0.0/3
 EOF
@@ -266,10 +266,9 @@ EOF
 
 load_ipv6(){
 cat>$XRAY_DIR/expose/segment/ipv6<<EOF
-::1/128
-FC00::/7
-FE80::/10
-FF00::/8
+fc00::/7
+fe80::/10
+ff00::/8
 EOF
 }
 
@@ -295,7 +294,9 @@ cp $ASSET_DIR/*.dat $XRAY_DIR/asset/
 [ ! -s "$XRAY_DIR/expose/segment/ipv4" ] && load_ipv4
 [ ! -s "$XRAY_DIR/expose/segment/ipv6" ] && load_ipv6
 
-[ -f "$NETWORK_DIR/ignore" ] && exit
-[ ! -s "$NETWORK_DIR/ipv4" ] && load_network_ipv4
-[ ! -s "$NETWORK_DIR/ipv6" ] && load_network_ipv6
+mkdir -p $NETWORK_DIR/interface
+[ -s "$NETWORK_DIR/dns" ] && init_dns
+[ -f "$NETWORK_DIR/interface/ignore" ] && exit
+[ ! -s "$NETWORK_DIR/interface/ipv4" ] && load_network_ipv4
+[ ! -s "$NETWORK_DIR/interface/ipv6" ] && load_network_ipv6
 init_network
