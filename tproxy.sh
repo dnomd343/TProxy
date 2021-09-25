@@ -19,8 +19,8 @@ while read -r segment
 do
   eval "ip6tables -t mangle -A XRAY6 -d $segment -j RETURN"
 done < /etc/xray/expose/segment/ipv6
-ip6tables -t mangle -A XRAY6 -p tcp -j TPROXY --on-port 7288 --tproxy-mark 1
-ip6tables -t mangle -A XRAY6 -p udp -j TPROXY --on-port 7288 --tproxy-mark 1
+ip6tables -t mangle -A XRAY6 -p tcp -j TPROXY --on-port 7289 --tproxy-mark 1
+ip6tables -t mangle -A XRAY6 -p udp -j TPROXY --on-port 7289 --tproxy-mark 1
 ip6tables -t mangle -A PREROUTING -j XRAY6
 
-xray -confdir /etc/xray/conf/
+xray -confdir /etc/xray/config/

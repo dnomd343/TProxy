@@ -48,6 +48,27 @@ cat>$XRAY_DIR/config/inbounds.json<<EOF
       }
     },
     {
+      "tag": "tproxy6",
+      "port": 7289,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "network": "tcp,udp",
+        "followRedirect": true
+      },
+      "streamSettings": {
+        "sockopt": {
+          "tproxy": "tproxy"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
       "tag": "socks",
       "port": 1080,
       "protocol": "socks",
