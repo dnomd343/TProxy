@@ -190,6 +190,21 @@ EOF
 chmod +x $ASSET_DIR/update.sh
 }
 
+load_bypass_ipv4(){
+cat>"$NETWORK_DIR/bypass/ipv4"<<EOF
+169.254.0.0/16
+224.0.0.0/3
+EOF
+}
+
+load_bypass_ipv6(){
+cat>"$NETWORK_DIR/bypass/ipv6"<<EOF
+fc00::/7
+fe80::/10
+ff00::/8
+EOF
+}
+
 load_network_ipv4(){
 cat>"$NETWORK_DIR/interface/ipv4"<<EOF
 ADDRESS=
@@ -257,27 +272,11 @@ do
 done < $NETWORK_DIR/dns
 }
 
-load_ipv4(){
-cat>$XRAY_DIR/expose/segment/ipv4<<EOF
-169.254.0.0/16
-224.0.0.0/3
-EOF
-}
-
-load_ipv6(){
-cat>$XRAY_DIR/expose/segment/ipv6<<EOF
-fc00::/7
-fe80::/10
-ff00::/8
-EOF
-}
-
-mkdir -p $XRAY_DIR/config
-mkdir -p $XRAY_DIR/expose/segment
 mkdir -p $LOG_DIR
 mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
 mkdir -p $NETWORK_DIR
+mkdir -p $XRAY_DIR/config
 
 load_log
 load_inbounds
@@ -291,11 +290,11 @@ cp $CONFIG_DIR/*.json $XRAY_DIR/config/
 [ ! -s "$ASSET_DIR/update.sh" ] && load_asset_update
 cp $ASSET_DIR/*.dat $XRAY_DIR/asset/
 
-[ ! -s "$XRAY_DIR/expose/segment/ipv4" ] && load_ipv4
-[ ! -s "$XRAY_DIR/expose/segment/ipv6" ] && load_ipv6
-
+mkdir -p $NETWORK_DIR/bypass
 mkdir -p $NETWORK_DIR/interface
 [ -s "$NETWORK_DIR/dns" ] && init_dns
+[ ! -f "$NETWORK_DIR/bypass/ipv4" ] && load_bypass_ipv4
+[ ! -f "$NETWORK_DIR/bypass/ipv6" ] && load_bypass_ipv6
 [ -f "$NETWORK_DIR/interface/ignore" ] && exit
 [ ! -s "$NETWORK_DIR/interface/ipv4" ] && load_network_ipv4
 [ ! -s "$NETWORK_DIR/interface/ipv6" ] && load_network_ipv6

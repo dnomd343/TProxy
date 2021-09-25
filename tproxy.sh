@@ -13,7 +13,7 @@ rm -f /ipv4_range
 while read -r segment
 do
   eval "iptables -t mangle -A XRAY -d $segment -j RETURN"
-done < /etc/xray/expose/segment/ipv4
+done < /etc/xray/expose/network/bypass/ipv4
 iptables -t mangle -A XRAY -p tcp -j TPROXY --on-port 7288 --tproxy-mark 1
 iptables -t mangle -A XRAY -p udp -j TPROXY --on-port 7288 --tproxy-mark 1
 iptables -t mangle -A PREROUTING -j XRAY
@@ -30,7 +30,7 @@ rm -f /ipv6_range
 while read -r segment
 do
   eval "ip6tables -t mangle -A XRAY6 -d $segment -j RETURN"
-done < /etc/xray/expose/segment/ipv6
+done < /etc/xray/expose/network/bypass/ipv6
 ip6tables -t mangle -A XRAY6 -p tcp -j TPROXY --on-port 7289 --tproxy-mark 1
 ip6tables -t mangle -A XRAY6 -p udp -j TPROXY --on-port 7289 --tproxy-mark 1
 ip6tables -t mangle -A PREROUTING -j XRAY6
