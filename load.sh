@@ -13,6 +13,10 @@ legal=false
 [ "$log_level" == "error" ] && legal=true
 [ "$log_level" == "none" ] && legal=true
 [ "$legal" == false ] && log_level="warning"
+if [ "$log_level" != "none" ]; then
+  [ ! -s "$LOG_DIR/access.log" ] && touch $LOG_DIR/access.log
+  [ ! -s "$LOG_DIR/error.log" ] && touch $LOG_DIR/error.log
+fi
 cat>$XRAY_DIR/config/log.json<<EOF
 {
   "log": {
@@ -274,9 +278,7 @@ mkdir -p $XRAY_DIR/expose/segment
 mkdir -p $LOG_DIR
 mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
-
-[ ! -s "$LOG_DIR/access.log" ] && touch $LOG_DIR/access.log
-[ ! -s "$LOG_DIR/error.log" ] && touch $LOG_DIR/error.log
+mkdir -p $NETWORK_DIR
 
 load_log
 load_inbounds
