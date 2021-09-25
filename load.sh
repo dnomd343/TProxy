@@ -2,6 +2,7 @@ XRAY_DIR="/etc/xray"
 LOG_DIR="$XRAY_DIR/expose/log"
 ASSET_DIR="$XRAY_DIR/expose/asset"
 CONFIG_DIR="$XRAY_DIR/expose/config"
+NETWORK_DIR="$XRAY_DIR/expose/network"
 
 load_log(){
 log_level=`cat $LOG_DIR/level`
@@ -186,6 +187,65 @@ EOF
 chmod +x $ASSET_DIR/update.sh
 }
 
+load_network_ipv4(){
+cat>"$NETWORK_DIR/ipv4"<<EOF
+ADDRESS=
+GATEWAY=
+FORWARD=true
+EOF
+}
+
+load_network_ipv6(){
+cat>"$NETWORK_DIR/ipv6"<<EOF
+ADDRESS=
+GATEWAY=
+FORWARD=true
+EOF
+}
+
+init_network(){
+ifconfig eth0 down
+ip -4 addr flush dev eth0
+ip -6 addr flush dev eth0
+ifconfig eth0 up
+while read -r row
+do
+  temp=${row#ADDRESS=}
+  [ "$row" != "$temp" ] && ipv4_address=$temp
+  temp=${row#GATEWAY=}
+  [ "$row" != "$temp" ] && ipv4_gateway=$temp
+  temp=${row#FORWARD=}
+  [ "$row" != "$temp" ] && ipv4_forward=$temp
+done < $NETWORK_DIR/ipv4
+[ -n "$ipv4_address" ] && eval "ip -4 addr add $ipv4_address dev eth0"
+[ -n "$ipv4_gateway" ] && eval "ip -4 route add default via $ipv4_gateway"
+if [ -n "$ipv4_forward" ]; then
+  if [ "$ipv4_forward" = "true" ]; then
+    eval "sysctl -w net.ipv4.ip_forward=1"
+  else
+    eval "sysctl -w net.ipv4.ip_forward=0"
+  fi
+fi
+while read -r row
+do
+  temp=${row#ADDRESS=}
+  [ "$row" != "$temp" ] && ipv6_address=$temp
+  temp=${row#GATEWAY=}
+  [ "$row" != "$temp" ] && ipv6_gateway=$temp
+  temp=${row#FORWARD=}
+  [ "$row" != "$temp" ] && ipv6_forward=$temp
+done < $NETWORK_DIR/ipv6
+[ -n "$ipv6_address" ] && eval "ip -6 addr add $ipv6_address dev eth0"
+[ -n "$ipv6_gateway" ] && eval "ip -6 route add default via $ipv6_gateway"
+if [ -n "$ipv6_forward" ]; then
+  if [ "$ipv6_forward" = "true" ]; then
+    eval "sysctl -w net.ipv6.conf.all.forwarding=1"
+  else
+    eval "sysctl -w net.ipv6.conf.all.forwarding=0"
+  fi
+fi
+}
+
 load_ipv4(){
 cat>$XRAY_DIR/expose/segment/ipv4<<EOF
 127.0.0.0/8
@@ -226,3 +286,8 @@ cp $ASSET_DIR/*.dat $XRAY_DIR/asset/
 
 [ ! -s "$XRAY_DIR/expose/segment/ipv4" ] && load_ipv4
 [ ! -s "$XRAY_DIR/expose/segment/ipv6" ] && load_ipv6
+
+[ -f "$NETWORK_DIR/ignore" ] && exit
+[ ! -s "$NETWORK_DIR/ipv4" ] && load_network_ipv4
+[ ! -s "$NETWORK_DIR/ipv6" ] && load_network_ipv6
+init_network
