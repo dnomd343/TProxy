@@ -1,5 +1,5 @@
 get_github_latest_version() {
-  VERSION=$(curl --silent "https://api.github.com/repos/$1/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/');
+  VERSION=$(curl --silent "https://api.github.com/repos/$1/releases/latest" | jq | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/');
 }
 
 get_architecture() {

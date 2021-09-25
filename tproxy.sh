@@ -1,8 +1,8 @@
 [ -f "/etc/xray/expose/custom.sh" ] && sh /etc/xray/expose/custom.sh
 sh /etc/xray/load.sh
 
-ip rule add fwmark 1 table 100
-ip route add local 0.0.0.0/0 dev lo table 100
+ip -4 rule add fwmark 1 table 100
+ip -4 route add local 0.0.0.0/0 dev lo table 100
 iptables -t mangle -N XRAY
 ip -4 addr | grep -w "inet" | awk '{print $2}' > /ipv4_range
 while read -r segment

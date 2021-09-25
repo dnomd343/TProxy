@@ -14,8 +14,8 @@ legal=false
 [ "$log_level" == "none" ] && legal=true
 [ "$legal" == false ] && log_level="warning"
 if [ "$log_level" != "none" ]; then
-  [ ! -s "$LOG_DIR/access.log" ] && touch $LOG_DIR/access.log
-  [ ! -s "$LOG_DIR/error.log" ] && touch $LOG_DIR/error.log
+  [ ! -f "$LOG_DIR/access.log" ] && touch $LOG_DIR/access.log
+  [ ! -f "$LOG_DIR/error.log" ] && touch $LOG_DIR/error.log
 fi
 cat>$XRAY_DIR/config/log.json<<EOF
 {
@@ -103,21 +103,6 @@ cat>$XRAY_DIR/config/inbounds.json<<EOF
           "tls"
         ]
       }
-    },
-    {
-      "tag": "proxy",
-      "port": 10808,
-      "protocol": "socks",
-      "settings": {
-        "udp": true
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
-      }
     }
   ]
 }
@@ -142,7 +127,8 @@ cat>$CONFIG_DIR/outbounds.json<<EOF
   "outbounds": [
     {
       "tag": "node",
-      "protocol": "freedom"
+      "protocol": "freedom",
+      "settings": {}
     }
   ]
 }
@@ -155,13 +141,6 @@ cat>$CONFIG_DIR/routing.json<<EOF
   "routing": {
     "domainStrategy": "AsIs",
     "rules": [
-      {
-        "type": "field",
-        "inboundTag": [
-          "proxy"
-        ],
-        "outboundTag": "node"
-      },
       {
         "type": "field",
         "network": "tcp,udp",
@@ -221,6 +200,14 @@ FORWARD=true
 EOF
 }
 
+init_dns(){
+cat /dev/null > /etc/resolv.conf
+while read -r row
+do
+  echo "nameserver $row" >> /etc/resolv.conf
+done < $NETWORK_DIR/dns
+}
+
 init_network(){
 ifconfig eth0 down
 ip -4 addr flush dev eth0
@@ -264,19 +251,10 @@ if [ -n "$ipv6_forward" ]; then
 fi
 }
 
-init_dns(){
-cat /dev/null > /etc/resolv.conf
-while read -r row
-do
-  echo "nameserver $row" >> /etc/resolv.conf
-done < $NETWORK_DIR/dns
-}
-
 mkdir -p $LOG_DIR
 mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
 mkdir -p $NETWORK_DIR
-mkdir -p $XRAY_DIR/config
 
 load_log
 load_inbounds
