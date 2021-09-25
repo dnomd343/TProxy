@@ -1,5 +1,6 @@
 XRAY_DIR="/etc/xray"
 LOG_DIR="$XRAY_DIR/expose/log"
+ASSET_DIR="$XRAY_DIR/expose/asset"
 CONFIG_DIR="$XRAY_DIR/expose/config"
 
 load_log(){
@@ -168,6 +169,23 @@ cat>$CONFIG_DIR/dns.json<<EOF
 EOF
 }
 
+load_asset_update(){
+cat>$ASSET_DIR/update.sh<<"EOF"
+GITHUB="github.com"
+ASSET_REPO="Loyalsoldier/v2ray-rules-dat"
+VERSION=$(curl --silent "https://api.github.com/repos/$ASSET_REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/');
+mkdir -p ./temp/
+wget -P ./temp/ "https://$GITHUB/$ASSET_REPO/releases/download/$VERSION/geoip.dat"
+file_size=`du ./temp/geoip.dat | awk '{print $1}'`
+[ $file_size != "0" ] && mv -f ./temp/geoip.dat ./
+wget -P ./temp/ "https://$GITHUB/$ASSET_REPO/releases/download/$VERSION/geosite.dat"
+file_size=`du ./temp/geosite.dat | awk '{print $1}'`
+[ $file_size != "0" ] && mv -f ./temp/geosite.dat ./
+rm -rf ./temp/
+EOF
+chmod +x $ASSET_DIR/update.sh
+}
+
 load_ipv4(){
 cat>$XRAY_DIR/expose/segment/ipv4<<EOF
 127.0.0.0/8
@@ -188,6 +206,7 @@ EOF
 mkdir -p $XRAY_DIR/config
 mkdir -p $XRAY_DIR/expose/segment
 mkdir -p $LOG_DIR
+mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
 
 [ ! -s "$LOG_DIR/access.log" ] && touch $LOG_DIR/access.log
@@ -199,6 +218,11 @@ load_inbounds
 [ ! -s "$CONFIG_DIR/routing.json" ] && load_routing
 [ ! -s "$CONFIG_DIR/dns.json" ] && load_dns
 cp $CONFIG_DIR/*.json $XRAY_DIR/config/
+
+[ ! -s "$ASSET_DIR/geoip.dat" ] && cp $XRAY_DIR/asset/geoip.dat $ASSET_DIR/
+[ ! -s "$ASSET_DIR/geosite.dat" ] && cp $XRAY_DIR/asset/geosite.dat $ASSET_DIR/
+[ ! -s "$ASSET_DIR/update.sh" ] && load_asset_update
+cp $ASSET_DIR/*.dat $XRAY_DIR/asset/
 
 [ ! -s "$XRAY_DIR/expose/segment/ipv4" ] && load_ipv4
 [ ! -s "$XRAY_DIR/expose/segment/ipv6" ] && load_ipv6
