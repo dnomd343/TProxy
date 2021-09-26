@@ -251,6 +251,72 @@ if [ -n "$ipv6_forward" ]; then
 fi
 }
 
+load_radvd_conf(){
+cat>$NETWORK_DIR/radvd/config<<EOF
+AdvSendAdvert=on
+AdvManagedFlag=off
+AdvOtherConfigFlag=off
+
+MinRtrAdvInterval=10
+MaxRtrAdvInterval=30
+MinDelayBetweenRAs=3
+
+AdvOnLink=on
+AdvAutonomous=on
+AdvRouterAddr=off
+AdvValidLifetime=600
+AdvPreferredLifetime=100
+EOF
+}
+
+init_radvd(){
+while read -r row
+do
+  temp=${row#AdvSendAdvert=}
+  [ "$row" != "$temp" ] && AdvSendAdvert=$temp
+  temp=${row#AdvManagedFlag=}
+  [ "$row" != "$temp" ] && AdvManagedFlag=$temp
+  temp=${row#AdvOtherConfigFlag=}
+  [ "$row" != "$temp" ] && AdvOtherConfigFlag=$temp
+  temp=${row#MinRtrAdvInterval=}
+  [ "$row" != "$temp" ] && MinRtrAdvInterval=$temp
+  temp=${row#MaxRtrAdvInterval=}
+  [ "$row" != "$temp" ] && MaxRtrAdvInterval=$temp
+  temp=${row#MinDelayBetweenRAs=}
+  [ "$row" != "$temp" ] && MinDelayBetweenRAs=$temp
+  temp=${row#AdvOnLink=}
+  [ "$row" != "$temp" ] && AdvOnLink=$temp
+  temp=${row#AdvAutonomous=}
+  [ "$row" != "$temp" ] && AdvAutonomous=$temp
+  temp=${row#AdvRouterAddr=}
+  [ "$row" != "$temp" ] && AdvRouterAddr=$temp
+  temp=${row#AdvValidLifetime=}
+  [ "$row" != "$temp" ] && AdvValidLifetime=$temp
+  temp=${row#AdvPreferredLifetime=}
+  [ "$row" != "$temp" ] && AdvPreferredLifetime=$temp
+done < $NETWORK_DIR/radvd/config
+
+RADVD_CONF="/etc/radvd.conf"
+echo "interface eth0 {" > $RADVD_CONF
+[ -n "$AdvSendAdvert" ] && echo "    AdvSendAdvert $AdvSendAdvert;" >> $RADVD_CONF
+[ -n "$AdvManagedFlag" ] && echo "    AdvManagedFlag $AdvManagedFlag;" >> $RADVD_CONF
+[ -n "$AdvOtherConfigFlag" ] && echo "    AdvOtherConfigFlag $AdvOtherConfigFlag;" >> $RADVD_CONF
+[ -n "$MinRtrAdvInterval" ] && echo "    MinRtrAdvInterval $MinRtrAdvInterval;" >> $RADVD_CONF
+[ -n "$MaxRtrAdvInterval" ] && echo "    MaxRtrAdvInterval $MaxRtrAdvInterval;" >> $RADVD_CONF
+[ -n "$MinDelayBetweenRAs" ] && echo "    MinDelayBetweenRAs $MinDelayBetweenRAs;" >> $RADVD_CONF
+if [ -n "$ipv6_address" ]; then
+  echo "    prefix $ipv6_address {" >> $RADVD_CONF
+  [ -n "$AdvOnLink" ] && echo "        AdvOnLink $AdvOnLink;" >> $RADVD_CONF
+  [ -n "$AdvAutonomous" ] && echo "        AdvAutonomous $AdvAutonomous;" >> $RADVD_CONF
+  [ -n "$AdvRouterAddr" ] && echo "        AdvRouterAddr $AdvRouterAddr;" >> $RADVD_CONF
+  [ -n "$AdvValidLifetime" ] && echo "        AdvValidLifetime $AdvValidLifetime;" >> $RADVD_CONF
+  [ -n "$AdvPreferredLifetime" ] && echo "        AdvPreferredLifetime $AdvPreferredLifetime;" >> $RADVD_CONF
+  echo "    };" >> $RADVD_CONF
+fi
+echo "};" >> $RADVD_CONF
+radvd -C $RADVD_CONF
+}
+
 mkdir -p $LOG_DIR
 mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
@@ -268,12 +334,20 @@ cp $CONFIG_DIR/*.json $XRAY_DIR/config/
 [ ! -s "$ASSET_DIR/update.sh" ] && load_asset_update
 cp $ASSET_DIR/*.dat $XRAY_DIR/asset/
 
+mkdir -p $NETWORK_DIR/radvd
 mkdir -p $NETWORK_DIR/bypass
 mkdir -p $NETWORK_DIR/interface
 [ -s "$NETWORK_DIR/dns" ] && init_dns
 [ ! -f "$NETWORK_DIR/bypass/ipv4" ] && load_bypass_ipv4
 [ ! -f "$NETWORK_DIR/bypass/ipv6" ] && load_bypass_ipv6
-[ -f "$NETWORK_DIR/interface/ignore" ] && exit
-[ ! -s "$NETWORK_DIR/interface/ipv4" ] && load_network_ipv4
-[ ! -s "$NETWORK_DIR/interface/ipv6" ] && load_network_ipv6
-init_network
+
+if [ ! -f "$NETWORK_DIR/interface/ignore" ]; then
+  [ ! -s "$NETWORK_DIR/interface/ipv4" ] && load_network_ipv4
+  [ ! -s "$NETWORK_DIR/interface/ipv6" ] && load_network_ipv6
+  init_network
+fi
+
+if [ ! -f "$NETWORK_DIR/radvd/ignore" ]; then
+  [ ! -s "$NETWORK_DIR/radvd/config" ] && load_radvd_conf
+  init_radvd
+fi
