@@ -2,7 +2,7 @@
 
 快速搭建的虚拟网关，以旁路由形式收集内网流量，用于局域网设备的透明代理。该网关拥有独立的MAC与IP地址，脱离宿主机网络环境，使用Docker容器化部署，拉取镜像设置参数后即可运行，无需进行复杂的路由配置。
 
-原理上，借助于macvlan虚拟网卡技术实现，iptables/ip6tables机制收集客户端流量，以TProxy方式将数据交由Xray处理，实现虚拟代理网关，支持TCP和UDP流量，支持IPv4与IPv6双栈，支持 `amd64`、`i386`、`arm64`、`armv7` 多种CPU架构。
+原理上，借助于macvlan虚拟网卡技术实现，iptables与ip6tables机制收集客户端流量，以[TProxy方式](https://www.kernel.org/doc/html/latest/networking/tproxy.html)将数据交由[Xray内核](https://github.com/XTLS/Xray-core.git)处理，实现虚拟代理网关，支持TCP和UDP流量，支持IPv4与IPv6双栈，支持 `amd64`、`i386`、`arm64`、`armv7` 多种CPU架构。
 
 ## 镜像获取
 
@@ -31,7 +31,7 @@ shell> docker pull registry.cn-shenzhen.aliyuncs.com/dnomd343/tproxy
 
 ## 开始部署
 
-> 以下内容基于树莓派4B测试，系统为 `Raspberry Pi OS` ，Linux内核为 `5.10.60`，其它设备环境原理类似。
+> 以下内容基于树莓派4B测试，系统为 `Raspberry Pi OS` ，Linux内核为 `5.10.60` ，其它设备环境原理类似。
 
 开启网卡混杂模式
 
@@ -63,7 +63,7 @@ shell> docker network create -d macvlan \
 shell> mkdir /etc/scutweb
 ```
 
-启动容器，此处映射时间与时区信息到容器中，可以与宿主机进行同步（容器内默认为UTC零时区），用于日志时间记录。
+启动容器，将宿主机时间与时区信息映射到内部，同步时间参数（容器内默认为UTC零时区），用于日志时间记录。
 
 ```
 # 容器名称和存储目录可自行指定
@@ -84,7 +84,7 @@ dnomd343/tproxy:latest
 shell> docker ps -a
 ```
 
-容器成功运行以后，将会在存储目录下生成多个文件夹
+容器成功运行以后，将会在存储目录下生成以下四个文件夹
 
 + `asset`：存储路由规则
 
@@ -96,13 +96,13 @@ shell> docker ps -a
 
 **资源文件夹**
 
-`asset` 目录默认放置 `geoip.dat` 与 `geosite.dat` 规则文件，分别存储IP与域名归属信息，容器初始化时会同时创建 `update.sh` 脚本，用于向[Github仓库](https://github.com/Loyalsoldier/v2ray-rules-dat.git)拉取更新。
+`asset` 目录默认放置 `geoip.dat` 与 `geosite.dat` 规则文件，分别存储IP与域名归属信息，容器初始化时会同时创建 `update.sh` 脚本，用于[规则文件](https://github.com/Loyalsoldier/v2ray-rules-dat.git)的拉取更新。
 
-该目录也可放置自定义规则文件，后缀为 `.dat` 的文件将可以在Xray配置文件里直接引用，格式为 `ext:file.dat:tag` ，具体配置见[Xray文档](https://xtls.github.io/config/routing.html#ruleobject)。
+该目录也可放置自定义规则文件，所有后缀为 `.dat` 的文件将被装载到容器内部，可以在Xray配置文件里直接引用，格式为 `ext:file.dat:tag` ，具体配置见[Xray文档](https://xtls.github.io/config/routing.html#ruleobject)。
 
 **配置文件夹**
 
-`config` 目录存储Xray配置文件，容器初始化时创建 `dns.json` 、`outbounds.json` 和 `routing.json` 三个文件，分别指定路由DNS服务器、流量出口信息、流量路由信息。
+`config` 目录存储Xray配置文件，容器初始化时会创建 `dns.json` 、`outbounds.json` 和 `routing.json` 三个文件，分别指定路由DNS服务器、流量出口信息、流量路由信息。
 
 `dns.json` 指定路由匹配时的DNS服务器，默认使用主机DNS，具体原理见[Xray文档](https://xtls.github.io/config/dns.html)
 
@@ -116,7 +116,7 @@ shell> docker ps -a
 }
 ```
 
-`outbounds.json` 默认配置流量转发给上游网关，需要用户手动配置为上游接口，具体语法见[Xray文档](https://xtls.github.io/config/base/outbounds/)
+`outbounds.json` 默认配置流量转发给上游网关，需要用户手动配置为上游接口，具体语法见[Xray文档](https://xtls.github.io/config/outbound.html)
 
 ```
 {
@@ -130,7 +130,7 @@ shell> docker ps -a
 }
 ```
 
-`routing.json` 默认配置将全部流量交由 `node` 接口，即 `outbounds.json` 中的 `freedom` 出口，具体语法见[Xray文档](https://xtls.github.io/config/base/routing/)
+`routing.json` 默认配置将全部流量交由 `node` 接口，即 `outbounds.json` 中的 `freedom` 出口，具体语法见[Xray文档](https://xtls.github.io/config/routing.html)
 
 ```
 {
@@ -147,9 +147,11 @@ shell> docker ps -a
 }
 ```
 
+此外，本目录下所有后缀为 `.json` 的文件将被加载到Xray中，使用[多文件配置](https://xtls.github.io/config/features/multiple.html)方式执行，容器内已预置 `log.json` 与 `inbounds.json` 两个文件，分别控制日志模块与入站流量，在 `config` 目录下创建同名文件可实现覆盖效果，不过若配置有误将导致代理失效，正常情况下不建议修改这两个文件。
+
 **日志文件夹**
 
-`log` 目录用于放置Xray代理日志，记录至 `access.log` 和 `error.log` 两个文件中。
+`log` 目录用于放置Xray代理日志，数据将记录到 `access.log` 和 `error.log` 两个文件中。
 
 日志记录级别默认为 `warning` ，需要修改时可以在目录下创建 `level` 文件，写入 `debug` 、`info` 、`warning` 、`error` 或 `none` 指定级别，具体区别见[Xray文档](https://xtls.github.io/config/log.html)。
 
@@ -157,7 +159,7 @@ shell> docker ps -a
 
 `network` 文件夹记录虚拟网关的网络配置，默认创建 `bypass` 和 `interface` 两个文件夹，前者记录不代理的网段，后者存储容器的IP、掩码和上游网关等信息。
 
-`bypass` 文件夹下默认有 `ipv4` 与 `ipv6` 两个文件，其中分别记录两种协议栈的绕过信息，容器初始化时除了配置回环地址、内网地址的绕过，还将绕过本配置文件中的网段，默认情况下，IPv4将绕过链路本地地址、D类多点播送地址和E类保留地址，IPv6将绕过唯一本地地址、链路本地地址和组播地址。
+`bypass` 文件夹下默认有 `ipv4` 与 `ipv6` 两个文件，其中分别记录两种协议栈的绕过信息，容器初始化时除了默认配置的回环地址、内网地址绕过，还将补充本配置文件中的网段。正常情况下，建议IPv4绕过链路本地地址 `169.254.0.0/16` 、D类多点播送地址和E类保留地址 `224.0.0.0/3` ，IPv6绕过唯一本地地址 `fc00::/7` 、链路本地地址 `fe80::/10` 以及组播地址 `ff00::/8` ，容器初始化时预置网段如下：
 
 ```
 shell> cat /etc/scutweb/network/bypass/ipv4
@@ -177,11 +179,11 @@ GATEWAY=
 FORWARD=true
 ```
 
-`ADDRESS` 指定容器静态IP地址及掩码，如 `192.168.2.2/24` 或 `fc00::2/64` ；
++ `ADDRESS` 指定容器静态IP地址及掩码，如 `192.168.2.2/24` 或 `fc00::2/64`
 
-`GATEWAY` 指定容器上游网关，如 `192.168.2.1` 或 `fc00::1` ；
++ `GATEWAY` 指定容器上游网关，如 `192.168.2.1` 或 `fc00::1`
 
-`FORWARD` 指定是否开启IPv4或IPv6的内核转发功能，正常情况下建议打开。
++ `FORWARD` 指定是否开启IPv4或IPv6的内核转发功能，正常情况下建议打开
 
 如果不需要自定义任何网络配置，可以在 `interface` 目录下创建 `ignore` 文件，跳过网络参数的相关配置。除此之外，在 `network` 目录下还可创建 `dns` 文件，在其中指定网关内部的DNS服务器。
 
@@ -191,7 +193,7 @@ FORWARD=true
 shell> docker restart -t=0 scutweb
 ```
 
-受限于macvlan机制，宿主机无法直接与macvlan容器通讯，因此需要手动配置网桥，才能使宿主机正常使用虚拟网关。
+受限于macvlan机制，宿主机无法直接与macvlan容器通讯，需要配置网桥才能让宿主机访问虚拟网关。
 
 ```
 shell> vim /etc/network/interfaces
@@ -216,7 +218,7 @@ iface macvlan inet static
   # 搭建网桥macvlan，用于与虚拟网关通讯
 ```
 
-重启宿主机网络生效（重启宿主机亦可）
+重启宿主机网络生效（或直接重启宿主机）
 
 ```
 shell> /etc/init.d/networking restart
@@ -241,7 +243,7 @@ GATEWAY=192.168.2.2
 FORWARD=true
 ```
 
-更改XRAY配置文件
+更改Xray配置文件
 
 ```
 # dns.json
@@ -254,7 +256,7 @@ FORWARD=true
 }
 ```
 
-此处DNS服务器用于域名分流，可指定国内公共DNS服务器，如 `223.5.5.5` 或 `119.29.29.29` 等（利用了GFW污染域名均为国外IP的特性），如果更准确地分流，也可指定为国外公共DNS服务器，如 `1.1.1.1` 或 `8.8.8.8` 等（请求流量会路由至国外节点，不存在污染问题）
+此处DNS服务器用于域名分流，可指定国内公共DNS服务器，如 `223.5.5.5` 或 `119.29.29.29` 等（利用了GFW污染域名均为国外IP的特性），如果更准确地分流，也可指定为国外公共DNS服务器，如 `1.1.1.1` 或 `8.8.8.8` 等（请求流量会路由至国外节点，不存在污染问题，但会降低解析速度）
 
 在出口配置中可以使用多台服务器进行负载均衡，提高科学上网速度，这里设置了三个节点
 
@@ -412,7 +414,7 @@ ip6tables -t nat -A PREROUTING -i eth0 -p icmp -j FAKE_PING
 }
 ```
 
-此处配置了三个可用节点，分别为 `nodeA` 、`nodeB` 和 `nodeC`
+此处配置三个可用节点，分别为 `nodeA` 、`nodeB` 和 `nodeC`
 
 ```
 # outbounds.json
@@ -478,13 +480,13 @@ ip6tables -t nat -A PREROUTING -i eth0 -p icmp -j FAKE_PING
 
 ### 预设接口
 
-+ `IPv4透明代理`: 7288端口，标志为 `tproxy`
++ `IPv4透明代理`：7288端口，标志为 `tproxy`
 
-+ `IPv6透明代理`: 7289端口，标志为 `tproxy6`
++ `IPv6透明代理`：7289端口，标志为 `tproxy6`
 
-+ `Socks5代理`: 1080端口，支持UDP，无授权，标志为 `socks`
++ `Socks5代理`：1080端口，支持UDP，无授权，标志为 `socks`
 
-+ `HTTP代理`: 1081端口，无授权，标志为 `http`
++ `HTTP代理`：1081端口，无授权，标志为 `http`
 
 ### 容器构建
 
