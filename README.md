@@ -185,7 +185,31 @@ FORWARD=true
 
 + `FORWARD` 指定是否开启IPv4或IPv6的内核转发功能，正常情况下建议打开
 
-如果不需要自定义任何网络配置，可以在 `interface` 目录下创建 `ignore` 文件，跳过网络参数的相关配置。除此之外，在 `network` 目录下还可创建 `dns` 文件，在其中指定网关内部的DNS服务器。
+如果不需要自定义任何网络配置，可以在 `interface` 目录下创建 `ignore` 文件，跳过网络参数的相关配置。
+
+`radvd` 文件夹在容器初始化时会默认创建 `config` 文件，配置网关IPv6路由广播信息，内容如下：
+
+```
+AdvSendAdvert=on
+AdvManagedFlag=off
+AdvOtherConfigFlag=off
+
+MinRtrAdvInterval=10
+MaxRtrAdvInterval=30
+MinDelayBetweenRAs=3
+
+AdvOnLink=on
+AdvAutonomous=on
+AdvRouterAddr=off
+AdvValidLifetime=600
+AdvPreferredLifetime=100
+```
+
+默认情况下为 `stateless` 无状态模式，自动根据容器IPv6地址发布RA报文。如果需要配置为 `stateful` 或无状态DHCPv6模式，修改 `AdvManagedFlag` 与 `AdvOtherConfigFlag` 的状态即可（两者分别对应RA报文的M字段与O字段），其他参数的解释可见[man手册](https://linux.die.net/man/5/radvd.conf)，需要注意的是，此处配置文件仅支持上述11个核心参数，其他选项将被忽略。
+
+如果不想开启本项功能，在 `radvd` 目录下创建 `ignore` 文件即可关闭服务。
+
+除此之外，在 `network` 目录下还可创建 `dns` 文件，在其中指定网关内部的DNS服务器。
 
 在更改完以上参数后，重启容器即可生效
 
@@ -225,7 +249,21 @@ shell> /etc/init.d/networking restart
 [ ok ] Restarting networking (via systemctl): networking.service.
 ```
 
-配置完成后，TProxy容器的IP地址可视为旁路由IP，需要使用代理的设备修改其网关为该IP地址即可，若想让内网全部设备均可使用，则需修改路由器DHCP设置，将网关指向容器IP（仅对动态IP地址设备生效，配置过静态IP的设备仍需手动修改）
+配置完成后，容器IP为虚拟旁路由网关地址，设备网关设置为该地址即可正常上网。
+
+对于非静态IP地址设备（常见情况）有以下情形：
+
++ 在IPv4上，修改路由器DHCP设置，将网关指向容器IP即可全局生效
+
++ 在IPv6上，容器默认会启动IPv6路由组播机制，内网设备将会无状态配置子网地址，网关地址自动指向容器链路本地地址，该配置可全局生效（需关闭路由器IPv6分配，避免冲突）
+
+对于静态IP地址设备（非常见情况）有以下情形：
+
++ 在IPv4上，修改设备网关为容器IPv4地址
+
++ 在IPv6上，修改设备地址至容器指定子网内，网关地址配置为容器IPv6地址（非链路本地地址）
+
+综上，开启虚拟网关前需关闭路由器IPv6地址分配，而后连入设备将自动适配IPv4与IPv6网络（绝大多数设备均以DHCP与IPv6路由器发现机制联网），对于此前在内网固定IP地址的设备，手动为其配置网关地址即可。
 
 ## 实例演示
 
