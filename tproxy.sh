@@ -57,14 +57,13 @@ ipv6_tproxy() { # IPv6 tproxy settings
   ip6tables -t mangle -A PREROUTING -j XRAY6
 }
 
-
 trap exit_func 2 15 # SIGINT and SIGTERM signal
 
 echo "[TProxy] Server start."
 echo "[TProxy] Init network environment."
+sh /etc/xray/load.sh
 ipv4_tproxy
 ipv6_tproxy
-sh /etc/xray/load.sh
 echo "[TProxy] Init complete."
 
 echo "[TProxy] Running custom script."

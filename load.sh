@@ -5,7 +5,11 @@ CONFIG_DIR="$XRAY_DIR/expose/config"
 NETWORK_DIR="$XRAY_DIR/expose/network"
 
 load_xray_log() {
-  log_level=$(cat $LOG_DIR/level)
+  if [ -f "$LOG_DIR/level" ]; then
+    log_level=$(cat $LOG_DIR/level)
+  else
+    log_level="warning"
+  fi
   legal=false
   [ "$log_level" == "debug" ] && legal=true
   [ "$log_level" == "info" ] && legal=true
@@ -317,6 +321,7 @@ mkdir -p $LOG_DIR
 mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
 mkdir -p $NETWORK_DIR
+mkdir -p $XRAY_DIR/config
 
 load_xray_log
 load_xray_inbounds
@@ -325,6 +330,7 @@ load_xray_inbounds
 [ ! -s "$CONFIG_DIR/dns.json" ] && load_xray_dns
 cp $CONFIG_DIR/*.json $XRAY_DIR/config/
 
+tar -C $XRAY_DIR -xf $XRAY_DIR/asset.tar.gz
 [ ! -s "$ASSET_DIR/geoip.dat" ] && cp $XRAY_DIR/asset/geoip.dat $ASSET_DIR/
 [ ! -s "$ASSET_DIR/geosite.dat" ] && cp $XRAY_DIR/asset/geosite.dat $ASSET_DIR/
 [ ! -s "$ASSET_DIR/update.sh" ] && load_update_script
