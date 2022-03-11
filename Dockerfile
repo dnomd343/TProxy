@@ -1,6 +1,6 @@
 FROM alpine as asset
 COPY ./asset.sh /
-RUN apk --update add --no-cache curl wget jq && \
+RUN apk add curl wget jq && \
     sh /asset.sh
 
 FROM alpine
