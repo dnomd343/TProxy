@@ -4,8 +4,8 @@ ASSET_DIR="$XRAY_DIR/expose/asset"
 CONFIG_DIR="$XRAY_DIR/expose/config"
 NETWORK_DIR="$XRAY_DIR/expose/network"
 
-load_log(){
-log_level=`cat $LOG_DIR/level`
+load_xray_log(){
+log_level=$(cat $LOG_DIR/level)
 legal=false
 [ "$log_level" == "debug" ] && legal=true
 [ "$log_level" == "info" ] && legal=true
@@ -28,7 +28,7 @@ cat>$XRAY_DIR/config/log.json<<EOF
 EOF
 }
 
-load_inbounds(){
+load_xray_inbounds(){
 cat>$XRAY_DIR/config/inbounds.json<<EOF
 {
   "inbounds": [
@@ -109,7 +109,7 @@ cat>$XRAY_DIR/config/inbounds.json<<EOF
 EOF
 }
 
-load_dns(){
+load_xray_dns(){
 cat>$CONFIG_DIR/dns.json<<EOF
 {
   "dns": {
@@ -121,7 +121,7 @@ cat>$CONFIG_DIR/dns.json<<EOF
 EOF
 }
 
-load_outbounds(){
+load_xray_outbounds(){
 cat>$CONFIG_DIR/outbounds.json<<EOF
 {
   "outbounds": [
@@ -135,7 +135,7 @@ cat>$CONFIG_DIR/outbounds.json<<EOF
 EOF
 }
 
-load_routing(){
+load_xray_routing(){
 cat>$CONFIG_DIR/routing.json<<EOF
 {
   "routing": {
@@ -152,21 +152,35 @@ cat>$CONFIG_DIR/routing.json<<EOF
 EOF
 }
 
-load_asset_update(){
+load_update_script(){
 cat>$ASSET_DIR/update.sh<<"EOF"
-GITHUB="github.com"
-ASSET_REPO="Loyalsoldier/v2ray-rules-dat"
-VERSION=$(curl --silent "https://api.github.com/repos/$ASSET_REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/');
-mkdir -p ./temp/
-wget -P ./temp/ "https://$GITHUB/$ASSET_REPO/releases/download/$VERSION/geoip.dat"
-file_size=`du ./temp/geoip.dat | awk '{print $1}'`
-[ $file_size != "0" ] && mv -f ./temp/geoip.dat ./
-wget -P ./temp/ "https://$GITHUB/$ASSET_REPO/releases/download/$VERSION/geosite.dat"
-file_size=`du ./temp/geosite.dat | awk '{print $1}'`
-[ $file_size != "0" ] && mv -f ./temp/geosite.dat ./
-rm -rf ./temp/
+VERSION=$(curl -sL "https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+mkdir temp/ && cd temp/
+wget "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$VERSION/geoip.dat"
+wget "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$VERSION/geosite.dat"
+[ -s "geoip.dat" ] && mv -f geoip.dat ../
+[ -s "geosite.dat" ] && mv -f geosite.dat ../
+cd ../ && rm -rf temp/
 EOF
 chmod +x $ASSET_DIR/update.sh
+}
+
+load_radvd_conf(){
+cat>$NETWORK_DIR/radvd/config<<EOF
+AdvSendAdvert=on
+AdvManagedFlag=off
+AdvOtherConfigFlag=off
+
+MinRtrAdvInterval=10
+MaxRtrAdvInterval=30
+MinDelayBetweenRAs=3
+
+AdvOnLink=on
+AdvAutonomous=on
+AdvRouterAddr=off
+AdvValidLifetime=600
+AdvPreferredLifetime=100
+EOF
 }
 
 load_bypass_ipv4(){
@@ -251,24 +265,6 @@ if [ -n "$ipv6_forward" ]; then
 fi
 }
 
-load_radvd_conf(){
-cat>$NETWORK_DIR/radvd/config<<EOF
-AdvSendAdvert=on
-AdvManagedFlag=off
-AdvOtherConfigFlag=off
-
-MinRtrAdvInterval=10
-MaxRtrAdvInterval=30
-MinDelayBetweenRAs=3
-
-AdvOnLink=on
-AdvAutonomous=on
-AdvRouterAddr=off
-AdvValidLifetime=600
-AdvPreferredLifetime=100
-EOF
-}
-
 init_radvd(){
 while read -r row
 do
@@ -322,16 +318,16 @@ mkdir -p $ASSET_DIR
 mkdir -p $CONFIG_DIR
 mkdir -p $NETWORK_DIR
 
-load_log
-load_inbounds
-[ ! -s "$CONFIG_DIR/outbounds.json" ] && load_outbounds
-[ ! -s "$CONFIG_DIR/routing.json" ] && load_routing
-[ ! -s "$CONFIG_DIR/dns.json" ] && load_dns
+load_xray_log
+load_xray_inbounds
+[ ! -s "$CONFIG_DIR/outbounds.json" ] && load_xray_outbounds
+[ ! -s "$CONFIG_DIR/routing.json" ] && load_xray_routing
+[ ! -s "$CONFIG_DIR/dns.json" ] && load_xray_dns
 cp $CONFIG_DIR/*.json $XRAY_DIR/config/
 
 [ ! -s "$ASSET_DIR/geoip.dat" ] && cp $XRAY_DIR/asset/geoip.dat $ASSET_DIR/
 [ ! -s "$ASSET_DIR/geosite.dat" ] && cp $XRAY_DIR/asset/geosite.dat $ASSET_DIR/
-[ ! -s "$ASSET_DIR/update.sh" ] && load_asset_update
+[ ! -s "$ASSET_DIR/update.sh" ] && load_update_script
 cp $ASSET_DIR/*.dat $XRAY_DIR/asset/
 
 mkdir -p $NETWORK_DIR/radvd
