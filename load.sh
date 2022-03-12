@@ -330,7 +330,7 @@ load_xray_inbounds
 [ ! -s "$CONFIG_DIR/dns.json" ] && load_xray_dns
 cp $CONFIG_DIR/*.json $XRAY_DIR/config/
 
-tar -C $XRAY_DIR -xf $XRAY_DIR/asset.tar.gz && rm -f $XRAY_DIR/asset.tar.gz
+tar -C $XRAY_DIR -xf $XRAY_DIR/asset.tar.gz
 [ ! -s "$ASSET_DIR/geoip.dat" ] && cp $XRAY_DIR/asset/geoip.dat $ASSET_DIR/
 [ ! -s "$ASSET_DIR/geosite.dat" ] && cp $XRAY_DIR/asset/geosite.dat $ASSET_DIR/
 [ ! -s "$ASSET_DIR/update.sh" ] && load_update_script

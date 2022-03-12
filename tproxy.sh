@@ -73,4 +73,5 @@ custom_script="/etc/xray/expose/custom.sh"
 [ -f "$custom_script" ] && sh $custom_script
 
 echo "[TProxy] Start xray service."
-xray -confdir /etc/xray/config
+xray -confdir /etc/xray/config &
+wait
