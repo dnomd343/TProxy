@@ -547,4 +547,4 @@ shell> docker buildx build -t dnomd343/tproxy --platform="linux/amd64,linux/arm6
 
 ## 许可证
 
-MIT ©2021 [@dnomd343](https://github.com/dnomd343)
+MIT ©2022 [@dnomd343](https://github.com/dnomd343)
