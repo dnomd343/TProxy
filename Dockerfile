@@ -1,7 +1,7 @@
 FROM golang:1.17.8-alpine3.15 AS asset
 COPY . /tmp/TProxy
 ENV UPX_VERSION="3.96"
-ENV XRAY_VERSION="v1.5.3"
+ENV XRAY_VERSION="v1.5.4"
 RUN \
   apk add build-base bash make curl git perl ucl-dev zlib-dev && \
   \
