@@ -1,7 +1,7 @@
-FROM golang:1.17.8-alpine3.15 AS asset
+FROM golang:1.18.1-alpine3.15 AS asset
 COPY . /tmp/TProxy
 ENV UPX_VERSION="3.96"
-ENV XRAY_VERSION="v1.5.4"
+ENV XRAY_VERSION="v1.5.5"
 RUN \
   apk add build-base bash make curl git perl ucl-dev zlib-dev && \
   \
@@ -28,7 +28,7 @@ RUN \
   mv /tmp/TProxy/load.sh /asset/etc/xray/ && chmod +x /asset/etc/xray/load.sh && \
   mv /tmp/TProxy/tproxy.sh /asset/tproxy && chmod +x /asset/tproxy
 
-FROM alpine:3.15.2
+FROM alpine:3.15.4
 COPY --from=asset /asset/ /
 ENV XRAY_LOCATION_ASSET=/etc/xray/asset
 RUN apk add --no-cache iptables ip6tables radvd
