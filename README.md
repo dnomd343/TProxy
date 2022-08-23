@@ -4,6 +4,8 @@
 
 原理上，借助于macvlan虚拟网卡技术实现，iptables与ip6tables机制收集客户端流量，以[TProxy方式](https://www.kernel.org/doc/html/latest/networking/tproxy.html)将数据交由[Xray内核](https://github.com/XTLS/Xray-core.git)处理，实现虚拟代理网关，支持TCP和UDP流量，支持IPv4与IPv6双栈，支持 `amd64`、`i386`、`arm64`、`armv7` 多种CPU架构。
 
+## [本项目已升级为 XProxy >>>](https://github.com/dnomd343/XProxy)
+
 ## 镜像获取
 
 在[Docker Hub](https://hub.docker.com/repository/docker/dnomd343/tproxy)或[Github Package](https://github.com/dnomd343/TProxy/pkgs/container/tproxy)可以查看已构建的镜像，使用时建议拉取 `latest` 版本，如果需要特定版本镜像，拉取时指定tag为版本号即可。
